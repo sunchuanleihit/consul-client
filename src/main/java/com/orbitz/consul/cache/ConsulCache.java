@@ -80,21 +80,21 @@ public class ConsulCache<K, V> {
         this.responseCallback = new ConsulResponseCallback<List<V>>() {
             @Override
             public void onComplete(ConsulResponse<List<V>> consulResponse) {
-                LOGGER.info("DEBUG_CONSUL_LOG callback onComplete serviceName:{}", serviceName);
+                LOGGER.info("DEBUG_CONSUL_LOG service:{} callback onComplete", serviceName);
                 if (consulResponse.isKnownLeader()) {
                     if (!isRunning()) {
-                        LOGGER.error("DEBUG_CONSUL_LOG callback onComplete isNotRunning serviceName:{}", serviceName);
+                        LOGGER.error("DEBUG_CONSUL_LOG service:{} callback onComplete isNotRunning", serviceName);
                         return;
                     }
                     updateIndex(consulResponse);
-                    LOGGER.info("DEBUG_CONSUL_LOG callback onComplete updated (index={})", latestIndex);
+                    LOGGER.info("DEBUG_CONSUL_LOG service:{} callback onComplete updated (index={})", serviceName, latestIndex);
 
                     ImmutableMap<K, V> full = convertToMap(consulResponse);
 
                     boolean changed = !full.equals(lastResponse.get());
-                    LOGGER.info("DEBUG_CONSUL_LOG callback onComplete service:{}, changed:{}", serviceName, changed);
+                    LOGGER.info("DEBUG_CONSUL_LOG service:{} callback onComplete, changed:{}", serviceName, changed);
                     if (changed) {
-                        LOGGER.info("DEBUG_CONSUL_LOG callback onComplete service:{} changed, set response:{}, lastContact:{}", serviceName, full, consulResponse.getLastContact());
+                        LOGGER.info("DEBUG_CONSUL_LOG service:{} callback onComplete changed, set response:{}, lastContact:{}", serviceName, full, consulResponse.getLastContact());
                         // changes
                         lastResponse.set(full);
                         // metadata changes
@@ -103,7 +103,7 @@ public class ConsulCache<K, V> {
                     }
 
                     if (changed) {
-                        LOGGER.info("DEBUG_CONSUL_LOG callback onComplete service:{} changed, notify listener", serviceName);
+                        LOGGER.info("DEBUG_CONSUL_LOG service:{} callback onComplete changed, notify listener", serviceName);
                         Boolean locked = false;
                         if (state.get() == State.starting) {
                             listenersStartingLock.lock();
@@ -124,27 +124,27 @@ public class ConsulCache<K, V> {
                     if (state.compareAndSet(State.starting, State.started)) {
                         initLatch.countDown();
                     }
-                    LOGGER.info("DEBUG_CONSUL_LOG callback onComplete service:{} success, start new runCallback", serviceName);
+                    LOGGER.info("DEBUG_CONSUL_LOG service:{} callback onComplete success, start new runCallback", serviceName);
                     runCallback();
                 } else {
-                    LOGGER.error("DEBUG_CONSUL_LOG callback onComplete service:{} Consul cluster has no elected leader", serviceName);
+                    LOGGER.error("DEBUG_CONSUL_LOG service:{} callback onComplete Consul cluster has no elected leader", serviceName);
                     onFailure(new ConsulException("Consul cluster has no elected leader"));
                 }
             }
 
             @Override
             public void onFailure(Throwable throwable) {
-                LOGGER.error("DEBUG_CONSUL_LOG callback onFailure serviceName:{}", serviceName);
+                LOGGER.error("DEBUG_CONSUL_LOG service:{} callback onFailure", serviceName);
                 if (!isRunning()) {
-                    LOGGER.error("DEBUG_CONSUL_LOG callback onFailure isNotRuning serviceName:{}", serviceName);
+                    LOGGER.error("DEBUG_CONSUL_LOG service:{} callback onFailure isNotRuning", serviceName);
                     return;
                 }
-                LOGGER.error(String.format("DEBUG_CONSUL_LOG callback onFailure Error getting response from consul. will retry in %d %s", BACKOFF_DELAY_QTY_IN_MS, TimeUnit.MILLISECONDS), throwable);
+                LOGGER.error("DEBUG_CONSUL_LOG service:{} callback onFailure Error getting response from consul. will retry in {} {}", serviceName, BACKOFF_DELAY_QTY_IN_MS, TimeUnit.MILLISECONDS, throwable);
 
                 executorService.schedule(new Runnable() {
                     @Override
                     public void run() {
-                        LOGGER.info("DEBUG_CONSUL_LOG callback onFailure schedule runCallback serviceName:{}", serviceName);
+                        LOGGER.info("DEBUG_CONSUL_LOG service:{} callback onFailure schedule runCallback", serviceName);
                         runCallback();
                     }
                 }, BACKOFF_DELAY_QTY_IN_MS, TimeUnit.MILLISECONDS);
@@ -152,7 +152,7 @@ public class ConsulCache<K, V> {
         };
         checkStateExecutorService.scheduleWithFixedDelay(()->{
             if (lastUpdateIndexTimestamp > 0 && lastUpdateIndexTimestamp < System.currentTimeMillis() - 60000) {
-                LOGGER.error("DEBUG_CONSUL_LOG stop update lastIndex for {}s", (System.currentTimeMillis() - lastUpdateIndexTimestamp) / 1000);
+                LOGGER.error("DEBUG_CONSUL_LOG service:{} stop update lastIndex for {}s", serviceName, (System.currentTimeMillis() - lastUpdateIndexTimestamp) / 1000);
             }
         }, 60, 60, TimeUnit.SECONDS);
     }
@@ -175,13 +175,13 @@ public class ConsulCache<K, V> {
     }
 
     public void start() throws Exception {
-        LOGGER.info("DEBUG_CONSUL_LOG start service:{}", serviceName);
+        LOGGER.info("DEBUG_CONSUL_LOG service:{} start", serviceName);
         checkState(state.compareAndSet(State.latent, State.starting),"Cannot transition from state %s to %s", state.get(), State.starting);
         runCallback();
     }
 
     public void stop() throws Exception {
-        LOGGER.info("DEBUG_CONSUL_LOG stop service:{}", serviceName);
+        LOGGER.info("DEBUG_CONSUL_LOG service:{} stop", serviceName);
         State previous = state.getAndSet(State.stopped);
         if (previous != State.stopped) {
             executorService.shutdownNow();
@@ -190,10 +190,10 @@ public class ConsulCache<K, V> {
 
     private void runCallback() {
         if (isRunning()) {
-            LOGGER.info("DEBUG_CONSUL_LOG runCallback serviceName:{} running", serviceName);
+            LOGGER.info("DEBUG_CONSUL_LOG service:{} runCallback running", serviceName);
             callBackConsumer.consume(latestIndex.get(), responseCallback);
         } else {
-            LOGGER.error("DEBUG_CONSUL_LOG runCallback serviceName:{} stopped", serviceName);
+            LOGGER.error("DEBUG_CONSUL_LOG service:{} runCallback stopped", serviceName);
         }
     }
 
@@ -236,13 +236,13 @@ public class ConsulCache<K, V> {
 
     private void updateIndex(ConsulResponse<List<V>> consulResponse) {
         if (consulResponse == null) {
-            LOGGER.error("DEBUG_CONSUL_LOG updateIndex serviceName:{} consulResponse is null", serviceName);
+            LOGGER.error("DEBUG_CONSUL_LOG service:{} updateIndex consulResponse is null", serviceName);
         } else if (consulResponse.getIndex() == null) {
-            LOGGER.error("DEBUG_CONSUL_LOG updateIndex serviceName:{} consulResponse index is null", serviceName);
+            LOGGER.error("DEBUG_CONSUL_LOG service:{} updateIndex consulResponse index is null", serviceName);
         }
         if (consulResponse != null && consulResponse.getIndex() != null) {
             this.latestIndex.set(consulResponse.getIndex());
-            LOGGER.info("DEBUG_CONSUL_LOG updateIndex serviceName:{}, index:{}", serviceName, consulResponse.getIndex());
+            LOGGER.info("DEBUG_CONSUL_LOG service:{} updateIndex index:{}", serviceName, consulResponse.getIndex());
             lastUpdateIndexTimestamp = System.currentTimeMillis();
         }
     }

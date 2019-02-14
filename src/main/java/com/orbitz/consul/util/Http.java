@@ -67,7 +67,7 @@ public class Http {
 
     public static <T> void extractConsulResponse(Call<T> call, final ConsulResponseCallback<T> callback,
                                                  final Integer... okCodes) {
-        LOGGER.info("DEBUG_CONSUL_LOG extractConsulResponse");
+        LOGGER.info("DEBUG_CONSUL_LOG service extractConsulResponse");
         call.enqueue(new retrofit2.Callback<T>() {
             @Override
             public void onResponse(Call<T> call, Response<T> response) {
@@ -87,22 +87,22 @@ public class Http {
 
     public static <T> void extractConsulResponse(String serviceName, Call<T> call, final ConsulResponseCallback<T> callback,
                                                  final Integer... okCodes) {
-        LOGGER.info("DEBUG_CONSUL_LOG extractConsulResponse serviceName:{}", serviceName);
+        LOGGER.info("DEBUG_CONSUL_LOG service:{} extractConsulResponse", serviceName);
         call.enqueue(new retrofit2.Callback<T>() {
             @Override
             public void onResponse(Call<T> call, Response<T> response) {
                 if (isSuccessful(response, okCodes)) {
-                    LOGGER.info("DEBUG_CONSUL_LOG extractConsulResponse onResponse:{}, success", serviceName);
+                    LOGGER.info("DEBUG_CONSUL_LOG service:{} extractConsulResponse onResponse success", serviceName);
                     callback.onComplete(consulResponse(response));
                 } else {
-                    LOGGER.info("DEBUG_CONSUL_LOG extractConsulResponse onResponse:{}, fail", serviceName);
+                    LOGGER.info("DEBUG_CONSUL_LOG service:{} extractConsulResponse onResponse fail", serviceName);
                     callback.onFailure(new ConsulException(response.code(), response));
                 }
             }
 
             @Override
             public void onFailure(Call<T> call, Throwable t) {
-                LOGGER.info("DEBUG_CONSUL_LOG extractConsulResponse onFailure:{}", serviceName);
+                LOGGER.info("DEBUG_CONSUL_LOG service:{} extractConsulResponse onFailure", serviceName);
                 callback.onFailure(t);
             }
         });
