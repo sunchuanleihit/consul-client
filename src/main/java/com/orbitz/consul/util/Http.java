@@ -2,10 +2,13 @@ package com.orbitz.consul.util;
 
 import com.google.common.collect.Sets;
 import com.orbitz.consul.ConsulException;
+import com.orbitz.consul.HealthClient;
 import com.orbitz.consul.async.Callback;
 import com.orbitz.consul.async.ConsulResponseCallback;
 import com.orbitz.consul.model.ConsulResponse;
 import okhttp3.Headers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import retrofit2.Call;
 import retrofit2.Response;
 
@@ -13,6 +16,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 
 public class Http {
+    private final static Logger LOGGER = LoggerFactory.getLogger(Http.class);
 
     public static boolean isSuccessful(Response<?> response, Integer... okCodes) {
         return response.isSuccessful() || Sets.newHashSet(okCodes).contains(response.code());
@@ -63,6 +67,7 @@ public class Http {
 
     public static <T> void extractConsulResponse(Call<T> call, final ConsulResponseCallback<T> callback,
                                                  final Integer... okCodes) {
+        LOGGER.info("DEBUG_CONSUL_LOG extractConsulResponse");
         call.enqueue(new retrofit2.Callback<T>() {
             @Override
             public void onResponse(Call<T> call, Response<T> response) {
@@ -75,6 +80,29 @@ public class Http {
 
             @Override
             public void onFailure(Call<T> call, Throwable t) {
+                callback.onFailure(t);
+            }
+        });
+    }
+
+    public static <T> void extractConsulResponse(String serviceName, Call<T> call, final ConsulResponseCallback<T> callback,
+                                                 final Integer... okCodes) {
+        LOGGER.info("DEBUG_CONSUL_LOG extractConsulResponse serviceName:{}", serviceName);
+        call.enqueue(new retrofit2.Callback<T>() {
+            @Override
+            public void onResponse(Call<T> call, Response<T> response) {
+                if (isSuccessful(response, okCodes)) {
+                    LOGGER.info("DEBUG_CONSUL_LOG extractConsulResponse onResponse:{}, success", serviceName);
+                    callback.onComplete(consulResponse(response));
+                } else {
+                    LOGGER.info("DEBUG_CONSUL_LOG extractConsulResponse onResponse:{}, fail", serviceName);
+                    callback.onFailure(new ConsulException(response.code(), response));
+                }
+            }
+
+            @Override
+            public void onFailure(Call<T> call, Throwable t) {
+                LOGGER.info("DEBUG_CONSUL_LOG extractConsulResponse onFailure:{}", serviceName);
                 callback.onFailure(t);
             }
         });

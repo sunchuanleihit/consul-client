@@ -2,11 +2,14 @@ package com.orbitz.consul;
 
 import com.google.common.collect.ImmutableMap;
 import com.orbitz.consul.async.ConsulResponseCallback;
+import com.orbitz.consul.cache.ServiceHealthCache;
 import com.orbitz.consul.model.ConsulResponse;
 import com.orbitz.consul.model.State;
 import com.orbitz.consul.model.health.HealthCheck;
 import com.orbitz.consul.model.health.ServiceHealth;
 import com.orbitz.consul.option.QueryOptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import retrofit2.Call;
 import retrofit2.Retrofit;
 import retrofit2.http.GET;
@@ -24,6 +27,7 @@ import static com.orbitz.consul.util.Http.extractConsulResponse;
  * HTTP Client for /v1/health/ endpoints.
  */
 public class HealthClient {
+    private final static Logger LOGGER = LoggerFactory.getLogger(HealthClient.class);
 
     private final Api api;
 
@@ -202,7 +206,8 @@ public class HealthClient {
      */
     public void getHealthyServiceInstances(String service, QueryOptions queryOptions,
                                            ConsulResponseCallback<List<ServiceHealth>> callback) {
-        extractConsulResponse(api.getServiceInstances(service,
+        LOGGER.info("DEBUG_CONSUL_LOG getHealthyServiceInstances service:{}", service);
+        extractConsulResponse(service, api.getServiceInstances(service,
                 optionsFrom(ImmutableMap.of("passing", "true"), queryOptions.toQuery()),
                 queryOptions.getTag(), queryOptions.getNodeMeta()), callback);
     }
@@ -250,7 +255,8 @@ public class HealthClient {
      */
     public void getAllServiceInstances(String service, QueryOptions queryOptions,
                                        ConsulResponseCallback<List<ServiceHealth>> callback) {
-        extractConsulResponse(api.getServiceInstances(service, queryOptions.toQuery(),
+        LOGGER.info("DEBUG_CONSUL_LOG getAllServiceInstances service:{}", service);
+        extractConsulResponse(service, api.getServiceInstances(service, queryOptions.toQuery(),
                 queryOptions.getTag(), queryOptions.getNodeMeta()), callback);
     }
 

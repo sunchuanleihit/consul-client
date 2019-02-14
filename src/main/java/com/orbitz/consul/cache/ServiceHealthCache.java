@@ -6,14 +6,22 @@ import com.orbitz.consul.HealthClient;
 import com.orbitz.consul.async.ConsulResponseCallback;
 import com.orbitz.consul.model.health.ServiceHealth;
 import com.orbitz.consul.option.QueryOptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
 import java.util.List;
 
 public class ServiceHealthCache extends ConsulCache<ServiceHealthKey, ServiceHealth> {
+    private final static Logger LOGGER = LoggerFactory.getLogger(ServiceHealthCache.class);
 
     private ServiceHealthCache(Function<ServiceHealth, ServiceHealthKey> keyConversion, CallbackConsumer<ServiceHealth> callbackConsumer) {
         super(keyConversion, callbackConsumer);
+    }
+
+    private ServiceHealthCache(Function<ServiceHealth, ServiceHealthKey> keyConversion, CallbackConsumer<ServiceHealth> callbackConsumer, String serviceName) {
+        super(keyConversion, callbackConsumer);
+        this.setServiceName(serviceName);
     }
 
     /**
@@ -33,10 +41,10 @@ public class ServiceHealthCache extends ConsulCache<ServiceHealthKey, ServiceHea
             final int watchSeconds,
             final QueryOptions queryOptions,
             final Function<ServiceHealth, ServiceHealthKey> keyExtractor) {
-
         CallbackConsumer<ServiceHealth> callbackConsumer = new CallbackConsumer<ServiceHealth>() {
             @Override
             public void consume(BigInteger index, ConsulResponseCallback<List<ServiceHealth>> callback) {
+                LOGGER.info("DEBUG_CONSUL_LOG ServiceHealthCache consume serviceName:{}, index:{}", serviceName, index);
                 QueryOptions params = watchParams(index, watchSeconds, queryOptions);
                 if (passing) {
                     healthClient.getHealthyServiceInstances(serviceName, params, callback);
@@ -46,7 +54,7 @@ public class ServiceHealthCache extends ConsulCache<ServiceHealthKey, ServiceHea
             }
         };
 
-        return new ServiceHealthCache(keyExtractor, callbackConsumer);
+        return new ServiceHealthCache(keyExtractor, callbackConsumer, serviceName);
     }
 
     public static ServiceHealthCache newCache(
