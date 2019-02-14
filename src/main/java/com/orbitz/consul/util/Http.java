@@ -129,17 +129,23 @@ public class Http {
     }
 
     private static <T> ConsulResponse<T> consulResponse(Response<T> response) {
-        Headers headers = response.headers();
-        String indexHeaderValue = headers.get("X-Consul-Index");
-        String lastContactHeaderValue = headers.get("X-Consul-Lastcontact");
-        String knownLeaderHeaderValue = headers.get("X-Consul-Knownleader");
+        try {
+            Headers headers = response.headers();
+            String indexHeaderValue = headers.get("X-Consul-Index");
+            String lastContactHeaderValue = headers.get("X-Consul-Lastcontact");
+            String knownLeaderHeaderValue = headers.get("X-Consul-Knownleader");
 
-        BigInteger index = indexHeaderValue == null ? new BigInteger("0") : new BigInteger(indexHeaderValue);
-        long lastContact = lastContactHeaderValue == null ? 0 : Long.valueOf(lastContactHeaderValue);
-        boolean knownLeader = knownLeaderHeaderValue == null ? false : Boolean.valueOf(knownLeaderHeaderValue);
+            BigInteger index = indexHeaderValue == null ? new BigInteger("0") : new BigInteger(indexHeaderValue);
+            long lastContact = lastContactHeaderValue == null ? 0 : Long.valueOf(lastContactHeaderValue);
+            boolean knownLeader = knownLeaderHeaderValue == null ? false : Boolean.valueOf(knownLeaderHeaderValue);
 
-        ConsulResponse<T> consulResponse = new ConsulResponse<>(response.body(), lastContact, knownLeader, index);
+            ConsulResponse<T> consulResponse = new ConsulResponse<>(response.body(), lastContact, knownLeader, index);
+            LOGGER.info("DEBUG_CONSUL_LOG consulResponse success index:{}", index);
+            return consulResponse;
+        } catch (Throwable e) {
+            LOGGER.error("DEBUG_CONSUL_LOG consulResponse throw exception", e);
+            throw e;
+        }
 
-        return consulResponse;
     }
 }
