@@ -10,8 +10,7 @@ import com.orbitz.consul.async.ConsulResponseCallback;
 import com.orbitz.consul.model.ConsulResponse;
 import com.orbitz.consul.option.ImmutableQueryOptions;
 import com.orbitz.consul.option.QueryOptions;
-import jdk.nashorn.internal.objects.annotations.Getter;
-import jdk.nashorn.internal.objects.annotations.Setter;
+import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +25,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -66,6 +66,9 @@ public class ConsulCache<K, V> {
     private final CallbackConsumer<V> callBackConsumer;
     private final ConsulResponseCallback<List<V>> responseCallback;
     private String serviceName;
+    private long lastUpdateIndexTimestamp = 0;
+    private ScheduledExecutorService checkStateExecutorService = new ScheduledThreadPoolExecutor(1,
+            new BasicThreadFactory.Builder().namingPattern("check-circle-status-schedule-pool-%d").daemon(true).build());
 
     ConsulCache(
             Function<V, K> keyConversion,
@@ -147,6 +150,11 @@ public class ConsulCache<K, V> {
                 }, BACKOFF_DELAY_QTY_IN_MS, TimeUnit.MILLISECONDS);
             }
         };
+        checkStateExecutorService.scheduleWithFixedDelay(()->{
+            if (lastUpdateIndexTimestamp > 0 && lastUpdateIndexTimestamp < System.currentTimeMillis() - 60000) {
+                LOGGER.error("DEBUG_CONSUL_LOG stop update lastIndex for {}s", (System.currentTimeMillis() - lastUpdateIndexTimestamp) / 1000);
+            }
+        }, 60, 60, TimeUnit.SECONDS);
     }
 
     @VisibleForTesting
@@ -182,7 +190,10 @@ public class ConsulCache<K, V> {
 
     private void runCallback() {
         if (isRunning()) {
+            LOGGER.info("DEBUG_CONSUL_LOG runCallback serviceName:{} running", serviceName);
             callBackConsumer.consume(latestIndex.get(), responseCallback);
+        } else {
+            LOGGER.error("DEBUG_CONSUL_LOG runCallback serviceName:{} stopped", serviceName);
         }
     }
 
@@ -232,6 +243,7 @@ public class ConsulCache<K, V> {
         if (consulResponse != null && consulResponse.getIndex() != null) {
             this.latestIndex.set(consulResponse.getIndex());
             LOGGER.info("DEBUG_CONSUL_LOG updateIndex serviceName:{}, index:{}", serviceName, consulResponse.getIndex());
+            lastUpdateIndexTimestamp = System.currentTimeMillis();
         }
     }
 
