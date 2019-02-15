@@ -206,7 +206,6 @@ public class HealthClient {
      */
     public void getHealthyServiceInstances(String service, QueryOptions queryOptions,
                                            ConsulResponseCallback<List<ServiceHealth>> callback) {
-        LOGGER.info("DEBUG_CONSUL_LOG service:{} getHealthyServiceInstances", service);
         extractConsulResponse(service, api.getServiceInstances(service,
                 optionsFrom(ImmutableMap.of("passing", "true"), queryOptions.toQuery()),
                 queryOptions.getTag(), queryOptions.getNodeMeta()), callback);
@@ -255,7 +254,6 @@ public class HealthClient {
      */
     public void getAllServiceInstances(String service, QueryOptions queryOptions,
                                        ConsulResponseCallback<List<ServiceHealth>> callback) {
-        LOGGER.info("DEBUG_CONSUL_LOG service:{} getAllServiceInstances", service);
         extractConsulResponse(service, api.getServiceInstances(service, queryOptions.toQuery(),
                 queryOptions.getTag(), queryOptions.getNodeMeta()), callback);
     }

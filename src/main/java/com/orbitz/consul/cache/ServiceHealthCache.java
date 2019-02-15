@@ -44,7 +44,6 @@ public class ServiceHealthCache extends ConsulCache<ServiceHealthKey, ServiceHea
         CallbackConsumer<ServiceHealth> callbackConsumer = new CallbackConsumer<ServiceHealth>() {
             @Override
             public void consume(BigInteger index, ConsulResponseCallback<List<ServiceHealth>> callback) {
-                LOGGER.info("DEBUG_CONSUL_LOG service:{} ServiceHealthCache consume index:{}", serviceName, index);
                 QueryOptions params = watchParams(index, watchSeconds, queryOptions);
                 if (passing) {
                     healthClient.getHealthyServiceInstances(serviceName, params, callback);

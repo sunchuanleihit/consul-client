@@ -7,6 +7,7 @@ import com.orbitz.consul.async.Callback;
 import com.orbitz.consul.async.ConsulResponseCallback;
 import com.orbitz.consul.model.ConsulResponse;
 import okhttp3.Headers;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import retrofit2.Call;
@@ -67,7 +68,6 @@ public class Http {
 
     public static <T> void extractConsulResponse(Call<T> call, final ConsulResponseCallback<T> callback,
                                                  final Integer... okCodes) {
-        LOGGER.info("DEBUG_CONSUL_LOG service extractConsulResponse");
         call.enqueue(new retrofit2.Callback<T>() {
             @Override
             public void onResponse(Call<T> call, Response<T> response) {
@@ -87,22 +87,18 @@ public class Http {
 
     public static <T> void extractConsulResponse(String serviceName, Call<T> call, final ConsulResponseCallback<T> callback,
                                                  final Integer... okCodes) {
-        LOGGER.info("DEBUG_CONSUL_LOG service:{} extractConsulResponse", serviceName);
         call.enqueue(new retrofit2.Callback<T>() {
             @Override
             public void onResponse(Call<T> call, Response<T> response) {
                 if (isSuccessful(response, okCodes)) {
-                    LOGGER.info("DEBUG_CONSUL_LOG service:{} extractConsulResponse onResponse success", serviceName);
                     callback.onComplete(consulResponse(response));
                 } else {
-                    LOGGER.info("DEBUG_CONSUL_LOG service:{} extractConsulResponse onResponse fail", serviceName);
                     callback.onFailure(new ConsulException(response.code(), response));
                 }
             }
 
             @Override
             public void onFailure(Call<T> call, Throwable t) {
-                LOGGER.info("DEBUG_CONSUL_LOG service:{} extractConsulResponse onFailure", serviceName);
                 callback.onFailure(t);
             }
         });
@@ -129,23 +125,16 @@ public class Http {
     }
 
     private static <T> ConsulResponse<T> consulResponse(Response<T> response) {
-        try {
-            Headers headers = response.headers();
-            String indexHeaderValue = headers.get("X-Consul-Index");
-            String lastContactHeaderValue = headers.get("X-Consul-Lastcontact");
-            String knownLeaderHeaderValue = headers.get("X-Consul-Knownleader");
+        Headers headers = response.headers();
+        String indexHeaderValue = headers.get("X-Consul-Index");
+        String lastContactHeaderValue = headers.get("X-Consul-Lastcontact");
+        String knownLeaderHeaderValue = headers.get("X-Consul-Knownleader");
 
-            BigInteger index = indexHeaderValue == null ? new BigInteger("0") : new BigInteger(indexHeaderValue);
-            long lastContact = lastContactHeaderValue == null ? 0 : Long.valueOf(lastContactHeaderValue);
-            boolean knownLeader = knownLeaderHeaderValue == null ? false : Boolean.valueOf(knownLeaderHeaderValue);
+        BigInteger index = indexHeaderValue == null ? new BigInteger("0") : new BigInteger(indexHeaderValue);
+        long lastContact = lastContactHeaderValue == null ? 0 : NumberUtils.toLong(lastContactHeaderValue);
+        boolean knownLeader = knownLeaderHeaderValue == null ? false : Boolean.valueOf(knownLeaderHeaderValue);
 
-            ConsulResponse<T> consulResponse = new ConsulResponse<>(response.body(), lastContact, knownLeader, index);
-            LOGGER.info("DEBUG_CONSUL_LOG consulResponse success index:{}", index);
-            return consulResponse;
-        } catch (Throwable e) {
-            LOGGER.error("DEBUG_CONSUL_LOG consulResponse throw exception", e);
-            throw e;
-        }
-
+        ConsulResponse<T> consulResponse = new ConsulResponse<>(response.body(), lastContact, knownLeader, index);
+        return consulResponse;
     }
 }
